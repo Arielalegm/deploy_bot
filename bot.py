@@ -19,24 +19,23 @@ def get_ai_response(user_id, new_message):
     messages.append(current_message)
     
     try:
-        print("Enviando solicitud a OpenRouter...")  # Debug log
+        print("Enviando solicitud a OpenRouter...")
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json",
-                "HTTP-Referer": f"{SITE_URL}",  # Asegurarse de que sea una URL válida
+                "HTTP-Referer": SITE_URL,
                 "X-Title": SITE_NAME,
+                "Authorization": f"Bearer {OPENROUTER_API_KEY.strip()}",  # Asegurarse de que no hay espacios
+                "Content-Type": "application/json"
             },
             json={
-                "model": "deepseek/deepseek-chat:free",
-                "messages": messages,
-                "temperature": 0.7,  # Añadir temperatura para más control
-                "max_tokens": 1000   # Limitar longitud de respuesta
+                "model": "deepseek-ai/deepseek-chat-1.3b",  # Actualizado el nombre del modelo
+                "messages": messages
             }
         )
         
-        print(f"Estado de respuesta: {response.status_code}")  # Debug log
+        print(f"Estado de respuesta: {response.status_code}")
+        print(f"Respuesta completa: {response.text}")  # Añadido para debug
         
         if response.status_code != 200:
             print(f"Error en la API: {response.text}")  # Debug log
