@@ -8,50 +8,61 @@ bot = telebot.TeleBot(TELEGRAM_TOKEN)
 user_conversations = defaultdict(list)
 
 def get_ai_response(user_id, new_message):
-    # Construir el historial de mensajes comenzando con el system prompt
     messages = [
         {"role": "system", "content": SYSTEM_PROMPT}
     ]
     
-    # Agregar el historial de conversación existente
     if user_id in user_conversations:
         messages.extend(user_conversations[user_id])
     
-    # Agregar el nuevo mensaje del usuario
     current_message = {"role": "user", "content": new_message}
     messages.append(current_message)
     
     try:
+        print("Enviando solicitud a OpenRouter...")  # Debug log
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": SITE_URL,
+                "HTTP-Referer": f"{SITE_URL}",  # Asegurarse de que sea una URL válida
                 "X-Title": SITE_NAME,
             },
             json={
                 "model": "deepseek/deepseek-chat:free",
-                "messages": messages
+                "messages": messages,
+                "temperature": 0.7,  # Añadir temperatura para más control
+                "max_tokens": 1000   # Limitar longitud de respuesta
             }
         )
         
-        response.raise_for_status()  # Esto lanzará una excepción si hay error HTTP
-        ai_response = response.json()['choices'][0]['message']['content']
+        print(f"Estado de respuesta: {response.status_code}")  # Debug log
         
-        # Actualizar el historial de conversación
+        if response.status_code != 200:
+            print(f"Error en la API: {response.text}")  # Debug log
+            return "Lo siento, hubo un error en la comunicación con la IA."
+            
+        response_data = response.json()
+        ai_response = response_data['choices'][0]['message']['content']
+        
+        # Actualizar conversación
         user_conversations[user_id].append(current_message)
         user_conversations[user_id].append({"role": "assistant", "content": ai_response})
         
-        # Mantener solo los últimos MAX_MEMORY_MESSAGES * 2 mensajes (pregunta + respuesta)
         if len(user_conversations[user_id]) > MAX_MEMORY_MESSAGES * 2:
             user_conversations[user_id] = user_conversations[user_id][-(MAX_MEMORY_MESSAGES * 2):]
         
         return ai_response
         
+    except requests.exceptions.RequestException as e:
+        print(f"Error de red: {str(e)}")
+        return "Lo siento, hubo un error de conexión."
+    except json.JSONDecodeError as e:
+        print(f"Error al procesar JSON: {str(e)}")
+        return "Lo siento, hubo un error al procesar la respuesta."
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return "Lo siento, hubo un error al procesar tu mensaje."
+        print(f"Error inesperado: {str(e)}")
+        return "Lo siento, ocurrió un error inesperado."
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
